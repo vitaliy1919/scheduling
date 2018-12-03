@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.PriorityQueue;
 import java.util.Vector;
 
 public class SchedulingAlgorithm {
@@ -26,16 +27,22 @@ public class SchedulingAlgorithm {
             //BufferedWriter out = new BufferedWriter(new FileWriter(resultsFile));
             //OutputStream out = new FileOutputStream(resultsFile);
             LinkedList<sProcess> processes = new LinkedList<sProcess>(processVector);
-
+            PriorityQueue<sProcess> blockedProcesses = new PriorityQueue<>((a, b)->Integer.compare(a.ionext, b.ionext));
             PrintStream out = new PrintStream(new FileOutputStream(resultsFile));
-            while (comptime < runtime && !processes.isEmpty()) {
+            while (comptime < runtime && (!processes.isEmpty() || !blockedProcesses.isEmpty())) {
+                if (processes.isEmpty()) {
+                    sProcess shortestBlocked = blockedProcesses.poll();
+                    comptime = shortestBlocked.ionext;
+                    shortestBlocked.ionext = 0;
+                    processes.addLast(shortestBlocked);
+                }
                 int curRunningTime = 0;
                 sProcess curProcess = processes.removeFirst();
                 if (curProcess.time == -1)
                     curProcess.time = comptime;
                 out.println("Process: " + curProcess.number + " registered... (" + curProcess.cputime + " " + curProcess.ioblocking + " " + curProcess.cpudone + ")");
 
-                while (
+                while ( comptime < runtime &&
                         curRunningTime < quantum
                                 && curProcess.cpudone != curProcess.cputime
                                 && curProcess.ioblocking != curProcess.ionext) {
@@ -43,7 +50,15 @@ public class SchedulingAlgorithm {
                     curProcess.ionext++;
                     curRunningTime++;
                     comptime++;
+                    if (!blockedProcesses.isEmpty()) {
+                        if (blockedProcesses.peek().ionext == comptime) {
+                            sProcess shortestBlocked = blockedProcesses.poll();
+                            shortestBlocked.ionext = 0;
+                            processes.addLast(shortestBlocked);
+                        }
+                    }
                 }
+
                 if (curProcess.cpudone == curProcess.cputime) {
                     // process finished
                     curProcess.time = comptime - curProcess.time;
@@ -53,10 +68,11 @@ public class SchedulingAlgorithm {
 
                 if (curProcess.ioblocking == curProcess.ionext) {
                     // io blocked
-                    curProcess.ionext = 0;
+                    blockedProcesses.add(curProcess);
+                    curProcess.ionext = comptime + curProcess.ioblocking / 2;
                     curProcess.numblocked++;
                     out.println("Process: " + curProcess.number + "  I/O blocked... (" + curProcess.cputime + " " + curProcess.ioblocking + " " + curProcess.cpudone + ")");
-
+                    continue;
                 }
                 curProcess.preemted++;
                 processes.addLast(curProcess);

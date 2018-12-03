@@ -123,7 +123,7 @@ public class Scheduling {
         i++;
       }
     }
-    result = SchedulingAlgorithm.Run(quantum, runtime, processVector, result);
+    result = SchedulingAlgorithm.Run(runtime, quantum, processVector, result);
     try {
       //BufferedWriter out = new BufferedWriter(new FileWriter(resultsFile));
       PrintStream out = new PrintStream(new FileOutputStream(resultsFile));
